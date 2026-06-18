@@ -14,3 +14,7 @@ class SchedulerConfig:
 
     # Max concurrent threads for parallel ingestion processing
     SCHEDULER_MAX_WORKERS = int(os.getenv("SCHEDULER_MAX_WORKERS", "5"))
+
+    # Celery settings
+    CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672//")
+

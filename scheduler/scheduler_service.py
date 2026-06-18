@@ -147,69 +147,27 @@ class SchedulerService:
                 fhir_base_url=u["fhir_base_url"],
             )
 
-        # Step 4: Run processing for each user in parallel
+        # Step 4: Run processing for each user in parallel via Celery (RabbitMQ)
         scheduler_logger.info(
-            "Starting parallel user processing",
-            concurrency=SchedulerConfig.SCHEDULER_MAX_WORKERS,
+            "Dispatching ingestion tasks to Celery queue",
             user_count=len(valid_users),
         )
-        
-        loop = asyncio.get_running_loop()
-        from concurrent.futures import ThreadPoolExecutor
 
-        with ThreadPoolExecutor(max_workers=SchedulerConfig.SCHEDULER_MAX_WORKERS) as executor:
-            futures = [
-                loop.run_in_executor(
-                    executor,
-                    self._process_single_user_sync,
-                    u["user_id"],
-                    u["fhir_client_id"],
-                    u["fhir_base_url"]
-                )
-                for u in valid_users
-            ]
-            results = await asyncio.gather(*futures, return_exceptions=True)
+        from scheduler.tasks import process_user_fhir_data_task
 
-        for idx, result in enumerate(results):
-            if isinstance(result, Exception):
-                scheduler_logger.error("User processing task failed", user_index=idx, error=str(result))
+        for u in valid_users:
+            process_user_fhir_data_task.delay(
+                u["user_id"],
+                u["fhir_client_id"],
+                u["fhir_base_url"]
+            )
+            scheduler_logger.info(
+                "Task dispatched to RabbitMQ broker",
+                user_id=u["user_id"],
+            )
 
-        scheduler_logger.info("All user tasks completed")
+        scheduler_logger.info("All user task dispatches completed")
         scheduler_logger.info("Ingestion cycle complete")
-
-    # ------------------------------------------------------------------ #
-    #  Per-user processing (PLACEHOLDER — ingestion logic to be added)
-    # ------------------------------------------------------------------ #
-
-    def _process_single_user_sync(self, user_id: str, fhir_client_id: str, fhir_base_url: str):
-        """
-        Placeholder for per-user ingestion logic. Runs on a separate thread.
-        Currently logs the user details and simulates blocking I/O (e.g. FHIR call).
-        We will replace this with the actual IngestionService call.
-        """
-        import time
-        import threading
-
-        thread_name = threading.current_thread().name
-        current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-        scheduler_logger.info(
-            "User processing started",
-            thread_name=thread_name,
-            user_id=user_id,
-            fhir_client_id=fhir_client_id,
-            fhir_base_url=fhir_base_url,
-        )
-
-        # Simulate network latency of FHIR call (2 seconds blocking sleep)
-        time.sleep(2)
-
-        scheduler_logger.info(
-            "User processing completed",
-            thread_name=thread_name,
-            user_id=user_id,
-            date=current_date,
-        )
 
     # ------------------------------------------------------------------ #
     #  HTTP helpers
