@@ -10,11 +10,11 @@ class IngestionTask(celery_app.Task):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Executed when a task runs out of retries or fails with a non-retryable exception."""
-        user_id = args[0] if len(args) > 0 else "unknown"
+        fhir_client_id = args[1] if len(args) > 1 else "unknown"
         tasks_logger.error(
             "FHIR Ingestion Task Permanently Failed",
             task_id=task_id,
-            user_id=user_id,
+            fhir_client_id=fhir_client_id,
             error=str(exc),
             traceback=str(einfo),
         )
@@ -29,7 +29,7 @@ class IngestionTask(celery_app.Task):
         ConnectionError,
         TimeoutError,
     ),
-    retry_kwargs={"max_retries": 3, "countdown": 5},  # Initial wait of 5 seconds
+    retry_kwargs={"max_retries": 2, "countdown": 5},  # Initial wait of 5 seconds
     retry_backoff=True,  # Backoff: 5s, 10s, 20s...
     retry_backoff_max=60,  # Cap delay at 60 seconds
 )
@@ -39,9 +39,7 @@ def process_user_fhir_data_task(
     """Celery task that runs the FHIR ingestion logic for a single user."""
     tasks_logger.info(
         "Celery FHIR Ingestion Task Started",
-        user_id=user_id,
         fhir_client_id=fhir_client_id,
-        fhir_base_url=fhir_base_url,
         attempt=self.request.retries + 1,
     )
 
@@ -52,6 +50,6 @@ def process_user_fhir_data_task(
     # Success Log
     tasks_logger.info(
         "Celery FHIR Ingestion Task Completed Successfully",
-        user_id=user_id,
+        fhir_client_id=fhir_client_id,
     )
     return {"user_id": user_id, "status": "SUCCESS"}

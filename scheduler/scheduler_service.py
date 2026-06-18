@@ -106,7 +106,8 @@ class SchedulerService:
 
         # Step 3: Filter active users with valid FHIR metadata
         scheduler_logger.info("Filtering active users with valid FHIR metadata")
-        valid_users = []
+        valid_users_list = []
+        seen_user_ids = set()
         for user in users:
             if not isinstance(user, dict):
                 continue
@@ -118,19 +119,24 @@ class SchedulerService:
             if not user_id or not activated or not isinstance(metadata, dict):
                 continue
 
+            if user_id in seen_user_ids:
+                continue
+
             fhir_client_id = metadata.get("client_id")
             fhir_base_url = metadata.get("base_url")
 
             if not fhir_client_id or not fhir_base_url:
                 continue
 
-            valid_users.append({
+            seen_user_ids.add(user_id)
+            valid_users_list.append({
                 "user_id": user_id,
                 "external_id": user.get("external_id", ""),
                 "fhir_client_id": fhir_client_id,
                 "fhir_base_url": fhir_base_url,
             })
 
+        valid_users = tuple(valid_users_list)
         scheduler_logger.info("Active users filter complete", active_valid_users=len(valid_users))
 
         if not valid_users:
@@ -141,10 +147,8 @@ class SchedulerService:
             scheduler_logger.info(
                 "Valid user found for processing",
                 user_index=i,
-                user_id=u["user_id"],
                 external_id=u["external_id"],
                 fhir_client_id=u["fhir_client_id"],
-                fhir_base_url=u["fhir_base_url"],
             )
 
         # Step 4: Run processing for each user in parallel via Celery (RabbitMQ)
@@ -163,7 +167,7 @@ class SchedulerService:
             )
             scheduler_logger.info(
                 "Task dispatched to RabbitMQ broker",
-                user_id=u["user_id"],
+                fhir_client_id=u["fhir_client_id"],
             )
 
         scheduler_logger.info("All user task dispatches completed")
