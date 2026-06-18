@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Structured Log Viewer</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --bg-accent: #e8dfd1;
+      --panel: rgba(255, 252, 246, 0.9);
+      --panel-strong: #fffaf2;
+      --text: #2a2119;
+      --muted: #6f6256;
+      --border: rgba(72, 55, 37, 0.14);
+      --accent: #b65e3c;
+      --accent-soft: rgba(182, 94, 60, 0.14);
+      --success: #2f7d4b;
+      --warn: #9a6a12;
+      --danger: #a53c2f;
+      --shadow: 0 18px 45px rgba(73, 53, 34, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Segoe UI", "Trebuchet MS", Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(182, 94, 60, 0.12), transparent 28%),
+        radial-gradient(circle at right, rgba(47, 125, 75, 0.1), transparent 24%),
+        linear-gradient(180deg, var(--bg) 0%, #f7f1e6 100%);
+      padding: 28px;
+    }
+
+    .page {
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    .hero,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero {
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .title {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 40px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .control-card {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .control-card h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .control-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff9f2;
+      background: linear-gradient(135deg, #c56a43 0%, #a04831 100%);
+      box-shadow: 0 10px 20px rgba(165, 60, 47, 0.18);
+    }
+
+    button.secondary {
+      color: var(--text);
+      background: #efe3d1;
+      box-shadow: none;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .stat {
+      min-width: 150px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-value {
+      margin-top: 6px;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .status {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .panel {
+      overflow: hidden;
+    }
+
+    .table-wrap {
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 1440px;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    thead th {
+      position: sticky;
+      z-index: 2;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 250, 242, 0.96);
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    thead tr.header-row th {
+      top: 0;
+    }
+
+    thead tr.filter-row th {
+      top: 44px;
+      background: rgba(249, 243, 233, 0.98);
+      padding: 10px 12px;
+      text-transform: none;
+      letter-spacing: normal;
+      z-index: 1;
+    }
+
+    .column-filter {
+      width: 100%;
+      border: 1px solid rgba(72, 55, 37, 0.12);
+      background: #fffdf9;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .column-filter:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    tbody td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(72, 55, 37, 0.08);
+      vertical-align: top;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      white-space: pre-wrap;
+      background: rgba(255, 252, 246, 0.72);
+    }
+
+    tbody tr:nth-child(even) td {
+      background: rgba(248, 241, 229, 0.72);
+    }
+
+    tbody tr:hover td {
+      background: rgba(182, 94, 60, 0.07);
+    }
+
+    .mono {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .empty-state {
+      padding: 56px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .level-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .level-INFO {
+      color: var(--success);
+      background: rgba(47, 125, 75, 0.12);
+      border: 1px solid rgba(47, 125, 75, 0.18);
+    }
+
+    .level-WARNING {
+      color: var(--warn);
+      background: rgba(154, 106, 18, 0.12);
+      border: 1px solid rgba(154, 106, 18, 0.16);
+    }
+
+    .level-ERROR,
+    .level-CRITICAL {
+      color: var(--danger);
+      background: rgba(165, 60, 47, 0.12);
+      border: 1px solid rgba(165, 60, 47, 0.16);
+    }
+
+    .level-DEBUG {
+      color: #2563eb;
+      background: rgba(37, 99, 235, 0.11);
+      border: 1px solid rgba(37, 99, 235, 0.15);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 16px;
+      }
+
+      .hero {
+        padding: 18px;
+      }
+
+      .title {
+        font-size: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <p class="eyebrow">Structured Logging</p>
+      <h1 class="title">Log Viewer</h1>
+      <p class="subtitle">
+        Open one or more `.log` files, or choose a folder that contains them. The viewer parses JSON lines locally in your browser and renders the same searchable table without generating HTML during application runtime.
+      </p>
+
+      <div class="controls">
+        <article class="control-card">
+          <h2>Open Log Files</h2>
+          <p>Select multiple `.log` files directly.</p>
+          <div class="button-row">
+            <button type="button" id="openFilesButton">Choose Files</button>
+          </div>
+        </article>
+
+        <article class="control-card">
+          <h2>Open Folder</h2>
+          <p>Select a folder and the viewer will load every `.log` file inside it.</p>
+          <div class="button-row">
+            <button type="button" id="openFolderButton">Choose Folder</button>
+          </div>
+        </article>
+
+        <article class="control-card">
+          <h2>Session</h2>
+          <p>Clear the current dataset and open another file set whenever needed.</p>
+          <div class="button-row">
+            <button type="button" class="secondary" id="clearButton">Clear Data</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Files Loaded</div>
+          <div class="stat-value" id="fileCount">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Visible Rows</div>
+          <div class="stat-value" id="visibleCount">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Total Rows</div>
+          <div class="stat-value" id="totalCount">0</div>
+        </div>
+      </div>
+
+      <div class="status" id="statusText">No log file loaded.</div>
+    </section>
+
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <colgroup id="logColGroup"></colgroup>
+          <thead>
+            <tr class="header-row" id="headerRow"></tr>
+            <tr class="filter-row" id="filterRow"></tr>
+          </thead>
+          <tbody id="logTableBody">
+            <tr>
+              <td class="empty-state" colspan="9">
+                Choose a `.log` file or a folder to render structured logs.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <input type="file" id="filePicker" accept=".log" multiple />
+  <input type="file" id="folderPicker" accept=".log" multiple webkitdirectory directory />
+
+  <script>
+    const COLUMN_DEFS = [
+      { name: "timestamp", label: "Timestamp", numeric: false },
+      { name: "level", label: "Level", numeric: false },
+      { name: "message", label: "Message", numeric: false },
+      { name: "request_id", label: "Request Id", numeric: false },
+      {name: "client_id", label: "Client Id", numeric: false},
+      { name: "service", label: "Service", numeric: false },
+      { name: "logger_name", label: "Logger Name", numeric: false },
+      { name: "stacktrace", label: "Stacktrace", numeric: false },
+      { name: "extra", label: "Extra", numeric: false },
+      { name: "source_file", label: "Source File", numeric: false }
+    ];
+
+    let ALL_LOGS = [];
+    let LOADED_FILES = [];
+
+    function getColumnWidth(column) {
+      const name = column.name.toLowerCase();
+      if (column.numeric) return "120px";
+      if (name === "timestamp") return "180px";
+      if (name === "level") return "120px";
+      if (name.includes("message")) return "360px";
+      if (name.includes("stacktrace")) return "320px";
+      if (name.includes("extra")) return "300px";
+      if (name.endsWith("_id") || name === "id") return "220px";
+      return "190px";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function stringifyValue(value) {
+      if (value == null) return "";
+      if (typeof value === "object") return JSON.stringify(value, null, 2);
+      return String(value);
+    }
+
+    function updateStatus(message) {
+      document.getElementById("statusText").textContent = message;
+    }
+
+    function updateCounts(totalRows, visibleRows, fileCount) {
+      document.getElementById("totalCount").textContent = String(totalRows);
+      document.getElementById("visibleCount").textContent = String(visibleRows);
+      document.getElementById("fileCount").textContent = String(fileCount);
+    }
+
+    function buildTableShell() {
+      document.getElementById("logColGroup").innerHTML = COLUMN_DEFS.map(
+        (column) => `<col style="width: ${getColumnWidth(column)};">`
+      ).join("");
+
+      document.getElementById("headerRow").innerHTML = COLUMN_DEFS.map(
+        (column) => `<th>${escapeHtml(column.label)}</th>`
+      ).join("");
+
+      document.getElementById("filterRow").innerHTML = COLUMN_DEFS.map((column) => {
+        const placeholder = column.numeric ? ">10, <=5, =7" : "Filter...";
+        return `
+          <th>
+            <input
+              class="column-filter"
+              id="filter_${column.name}"
+              type="text"
+              placeholder="${escapeHtml(placeholder)}"
+            />
+          </th>
+        `;
+      }).join("");
+
+      document.querySelectorAll(".column-filter").forEach((input) => {
+        input.addEventListener("input", filterLogs);
+      });
+    }
+
+    function parseNumericFilter(raw) {
+      const value = raw.trim();
+      const match = value.match(/^(>=|<=|>|<|=)?\s*(-?\d+(?:\.\d+)?)$/);
+      if (!match) return null;
+      return {
+        op: match[1] || "=",
+        value: Number(match[2])
+      };
+    }
+
+    function matchesNumericFilter(filterText, actualValue) {
+      const parsed = parseNumericFilter(filterText);
+      if (!parsed) {
+        return String(actualValue).toLowerCase().includes(filterText.toLowerCase());
+      }
+
+      const actual = Number(actualValue);
+      if (Number.isNaN(actual)) return false;
+
+      switch (parsed.op) {
+        case ">": return actual > parsed.value;
+        case "<": return actual < parsed.value;
+        case ">=": return actual >= parsed.value;
+        case "<=": return actual <= parsed.value;
+        case "=": return actual === parsed.value;
+        default: return false;
+      }
+    }
+
+    function normalizeRow(row, sourceFile) {
+      const normalized = {};
+
+      for (const column of COLUMN_DEFS) {
+        normalized[column.name] = row[column.name] ?? "";
+      }
+
+      const extra = {};
+      for (const [key, value] of Object.entries(row)) {
+        if (!COLUMN_DEFS.some((column) => column.name === key) && key !== "environment" && key !== "exception") {
+          extra[key] = value;
+        }
+      }
+
+      if (Object.keys(extra).length > 0) {
+        if (normalized.extra && typeof normalized.extra === "object" && !Array.isArray(normalized.extra)) {
+          normalized.extra = { ...normalized.extra, ...extra };
+        } else if (!normalized.extra) {
+          normalized.extra = extra;
+        }
+      }
+
+      normalized.source_file = sourceFile;
+      return normalized;
+    }
+
+    function buildRowHtml(row) {
+      const datasetAttrs = COLUMN_DEFS.map((column) => {
+        const displayValue = stringifyValue(row[column.name]);
+        return `data-${column.name}="${escapeHtml(displayValue.toLowerCase())}"`;
+      }).join(" ");
+
+      const cells = COLUMN_DEFS.map((column) => {
+        const rawValue = row[column.name];
+        const displayValue = stringifyValue(rawValue);
+        const extraClass = ["request_id","client_id", "stacktrace", "source_file"].includes(column.name) ? "mono" : "";
+
+        if (column.name === "level") {
+          const levelUpper = String(rawValue || "").toUpperCase();
+          return `<td><span class="level-pill level-${escapeHtml(levelUpper)}">${escapeHtml(levelUpper || "")}</span></td>`;
+        }
+
+        return `<td class="${extraClass}">${escapeHtml(displayValue)}</td>`;
+      }).join("");
+
+      return `<tr ${datasetAttrs}>${cells}</tr>`;
+    }
+
+    function renderEmptyState(message) {
+      const tbody = document.getElementById("logTableBody");
+      tbody.innerHTML = `
+        <tr>
+          <td class="empty-state" colspan="${COLUMN_DEFS.length}">
+            ${escapeHtml(message)}
+          </td>
+        </tr>
+      `;
+      updateCounts(0, 0, LOADED_FILES.length);
+    }
+
+    function renderLogs(rows) {
+      if (!rows.length) {
+        renderEmptyState("No valid JSON log entries found in the selected files.");
+        return;
+      }
+
+      const tbody = document.getElementById("logTableBody");
+      tbody.innerHTML = rows.map(buildRowHtml).join("");
+      updateCounts(rows.length, rows.length, LOADED_FILES.length);
+    }
+
+    function filterLogs() {
+      const rows = document.querySelectorAll("#logTableBody tr");
+      let visible = 0;
+
+      rows.forEach((row) => {
+        if (!row.dataset || Object.keys(row.dataset).length === 0) {
+          row.classList.remove("hidden");
+          return;
+        }
+
+        let show = true;
+
+        for (const column of COLUMN_DEFS) {
+          const filterInput = document.getElementById(`filter_${column.name}`);
+          const filterValue = (filterInput?.value || "").trim();
+          if (!filterValue) continue;
+
+          const rowValue = row.dataset[column.name] || "";
+          if (column.numeric) {
+            if (!matchesNumericFilter(filterValue, rowValue)) {
+              show = false;
+              break;
+            }
+          } else if (!rowValue.includes(filterValue.toLowerCase())) {
+            show = false;
+            break;
+          }
+        }
+
+        row.classList.toggle("hidden", !show);
+        if (show) visible += 1;
+      });
+
+      document.getElementById("visibleCount").textContent = String(visible);
+    }
+
+    async function parseLogFile(file) {
+      const text = await file.text();
+      const entries = [];
+
+      text.split(/\r?\n/).forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === "object") {
+            entries.push(normalizeRow(parsed, file.webkitRelativePath || file.name));
+          }
+        } catch (error) {
+          entries.push(normalizeRow({
+            timestamp: "",
+            level: "ERROR",
+            message: `Invalid JSON log line at ${file.name}:${index + 1}`,
+            extra: {
+              raw_line: trimmed,
+              parse_error: String(error)
+            }
+          }, file.webkitRelativePath || file.name));
+        }
+      });
+
+      return entries;
+    }
+
+    async function loadFiles(fileList) {
+      const files = Array.from(fileList)
+        .filter((file) => file.name.toLowerCase().endsWith(".log"))
+        .sort((a, b) => (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name));
+
+      LOADED_FILES = files.map((file) => file.webkitRelativePath || file.name);
+
+      if (!files.length) {
+        ALL_LOGS = [];
+        updateStatus("No `.log` files were selected.");
+        renderEmptyState("No `.log` files were selected.");
+        return;
+      }
+
+      updateStatus(`Loading ${files.length} log file(s)...`);
+
+      const parsedGroups = await Promise.all(files.map(parseLogFile));
+      ALL_LOGS = parsedGroups.flat();
+
+      renderLogs(ALL_LOGS);
+      filterLogs();
+      updateStatus(`Loaded ${files.length} log file(s) with ${ALL_LOGS.length} log entr${ALL_LOGS.length === 1 ? "y" : "ies"}.`);
+    }
+
+    function clearData() {
+      ALL_LOGS = [];
+      LOADED_FILES = [];
+      document.getElementById("filePicker").value = "";
+      document.getElementById("folderPicker").value = "";
+      document.querySelectorAll(".column-filter").forEach((input) => {
+        input.value = "";
+      });
+      updateStatus("Viewer cleared. Choose another `.log` file or folder.");
+      renderEmptyState("Choose a `.log` file or a folder to render structured logs.");
+    }
+
+    buildTableShell();
+    renderEmptyState("Choose a `.log` file or a folder to render structured logs.");
+
+    document.getElementById("openFilesButton").addEventListener("click", () => {
+      document.getElementById("filePicker").click();
+    });
+
+    document.getElementById("openFolderButton").addEventListener("click", () => {
+      document.getElementById("folderPicker").click();
+    });
+
+    document.getElementById("filePicker").addEventListener("change", (event) => {
+      loadFiles(event.target.files);
+    });
+
+    document.getElementById("folderPicker").addEventListener("change", (event) => {
+      loadFiles(event.target.files);
+    });
+
+    document.getElementById("clearButton").addEventListener("click", clearData);
+  </script>
+</body>
+</html>
